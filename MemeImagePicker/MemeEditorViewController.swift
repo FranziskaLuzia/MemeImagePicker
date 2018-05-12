@@ -13,11 +13,22 @@ struct Meme {
     let topText: String?
     let bottomText: String?
     
-    func memedImage(from view: UIView, with size: CGSize) -> UIImage {
+    var memedImage: UIImage?
+    
+    init(image: UIImage, topText: String?, bottomText: String?) {
+        self.image = image
+        self.topText = topText
+        self.bottomText = bottomText
+    }
+
+    mutating func createMemedImage(from view: UIView, with size: CGSize) -> UIImage {
         UIGraphicsBeginImageContext(size)
         view.drawHierarchy(in: view.frame, afterScreenUpdates: true)
         let image = UIGraphicsGetImageFromCurrentImageContext()!
         UIGraphicsEndImageContext()
+
+        memedImage = image
+
         return image
     }
 }
@@ -192,10 +203,26 @@ class MemeEditorViewController: UIViewController {
     private func save() {
         guard let image = image else { return }
         changeChrome(isHidden: true)
-        let meme = Meme(image: image, topText: topText.text, bottomText: bottomText.text)
-        let memedImage = meme.memedImage(from: view, with: view.frame.size)
+        var meme = Meme(image: image, topText: topText.text, bottomText: bottomText.text)
+        let memedImage = meme.createMemedImage(from: view, with: view.frame.size)
+   
         UIImageWriteToSavedPhotosAlbum(memedImage, self, nil, nil)
         changeChrome(isHidden: false)
+        
+        let title = (meme.topText ?? "") + " - " + (meme.bottomText ?? "")
+
+        let defaults = UserDefaults.standard
+        let dict: [String : Any] = ["title" : title, "imageData" : UIImageJPEGRepresentation(memedImage, 1.0)]
+        if let memeArr = defaults.array(forKey: "memes") {
+            var memes = memeArr
+            memes.append(dict)
+            defaults.set(memes, forKey: "memes")
+        } else {
+            defaults.set([dict], forKey: "memes")
+        }
+        
+        performSegue(withIdentifier: "shared", sender: self)
+        
     }
     
     private func changeChrome(isHidden: Bool) {
